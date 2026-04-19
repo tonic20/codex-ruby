@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 (2026-04-19)
+
+- Expose rollout-derived `context_snapshot` data on `Exec`, `AgentThread`, and blocking `Turn` results
+- Add `TokenUsage` and `ContextSnapshot` types plus rollout log parsing for Codex `token_count` events
+- Add RuboCop to the repository with a dedicated CI lint job and baseline configuration
+
 ## 0.1.1 (2026-04-11)
 
 - Patch release
