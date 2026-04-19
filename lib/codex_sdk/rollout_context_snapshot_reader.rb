@@ -23,8 +23,9 @@ module CodexSDK
     def candidate_rollouts
       return [] unless Dir.exist?(@sessions_root)
 
-      rollout_paths = Dir.glob(File.join(@sessions_root, "**", "rollout-*.jsonl"))
-      rollout_paths.select { |path| candidate_rollout?(path) }.sort_by { |path| File.mtime(path) }
+      Dir.glob(File.join(@sessions_root, "**", "rollout-*.jsonl"))
+         .select { |path| candidate_rollout?(path) }
+         .sort_by { |path| File.mtime(path) }
     end
 
     def candidate_rollout?(path)
