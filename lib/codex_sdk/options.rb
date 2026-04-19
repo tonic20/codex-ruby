@@ -63,9 +63,43 @@ module CodexSDK
     end
   end
 
+  # Detailed token usage from rollout token_count snapshots.
+  TokenUsage = Data.define(
+    :input_tokens,
+    :cached_input_tokens,
+    :output_tokens,
+    :reasoning_output_tokens,
+    :total_tokens
+  ) do
+    def initialize(
+      input_tokens: 0,
+      cached_input_tokens: 0,
+      output_tokens: 0,
+      reasoning_output_tokens: 0,
+      total_tokens: 0
+    )
+      super
+    end
+  end
+
+  # Final context snapshot derived from Codex rollout logs.
+  ContextSnapshot = Data.define(:model_context_window, :last_token_usage, :total_token_usage) do
+    def initialize(
+      model_context_window: 0,
+      last_token_usage: TokenUsage.new,
+      total_token_usage: TokenUsage.new
+    )
+      super
+    end
+
+    def context_tokens
+      last_token_usage.total_tokens
+    end
+  end
+
   # Result of a blocking Thread#run call.
-  Turn = Data.define(:items, :final_response, :usage) do
-    def initialize(items: [], final_response: "", usage: nil)
+  Turn = Data.define(:items, :final_response, :usage, :context_snapshot) do
+    def initialize(items: [], final_response: "", usage: nil, context_snapshot: nil)
       super
     end
   end

@@ -4,7 +4,7 @@ require "fileutils"
 
 module CodexSDK
   class AgentThread
-    attr_reader :id
+    attr_reader :id, :context_snapshot
 
     def initialize(options, thread_options:, resume_id: nil)
       @options = options
@@ -33,7 +33,7 @@ module CodexSDK
         end
       end
 
-      Turn.new(items: items, final_response: final_response, usage: usage)
+      Turn.new(items: items, final_response: final_response, usage: usage, context_snapshot: @context_snapshot)
     end
 
     # Streaming run: yields each event to the block as it arrives.
@@ -61,6 +61,7 @@ module CodexSDK
         block.call(event)
       end
     ensure
+      @context_snapshot = @exec&.context_snapshot
       cleanup_output_schema(output_schema_path)
     end
 

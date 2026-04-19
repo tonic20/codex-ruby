@@ -98,6 +98,23 @@ RSpec.describe CodexSDK::Exec do
         "--dangerously-bypass-approvals-and-sandbox"
       )
     end
+
+    it "captures the final context snapshot after a successful run" do
+      snapshot = CodexSDK::ContextSnapshot.new(
+        model_context_window: 258_400,
+        last_token_usage: CodexSDK::TokenUsage.new(total_tokens: 20_145),
+        total_token_usage: CodexSDK::TokenUsage.new(total_tokens: 28_198)
+      )
+      reader = instance_double(CodexSDK::RolloutContextSnapshotReader, read: snapshot)
+
+      mock_popen3(stdout_lines: ['{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}'])
+      allow(CodexSDK::RolloutContextSnapshotReader).to receive(:new).and_return(reader)
+
+      exec = described_class.new(options, thread_options: thread_options)
+      exec.run("hello") { |_| }
+
+      expect(exec.context_snapshot).to eq(snapshot)
+    end
   end
 
   describe "#interrupt" do

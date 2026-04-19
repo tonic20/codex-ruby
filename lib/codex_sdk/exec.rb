@@ -10,7 +10,7 @@ module CodexSDK
   class Exec
     SHUTDOWN_TIMEOUT = 10 # seconds to wait after SIGTERM before SIGKILL
 
-    attr_reader :pid
+    attr_reader :pid, :context_snapshot
 
     def initialize(options, thread_options: ThreadOptions.new)
       @options = options
@@ -27,6 +27,9 @@ module CodexSDK
     def run(prompt, resume_thread_id: nil, images: [], output_schema_path: nil, &block)
       args = build_args(resume_thread_id: resume_thread_id, images: images, output_schema_path: output_schema_path)
       env = build_env
+      sessions_root = codex_sessions_root(env)
+      started_at = Time.now
+      @context_snapshot = nil
 
       @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(env, *args)
 
@@ -64,6 +67,11 @@ module CodexSDK
           stderr: stderr_buf
         )
       end
+
+      @context_snapshot = read_context_snapshot(
+        sessions_root: sessions_root,
+        started_at: started_at
+      )
     ensure
       cleanup
     end
@@ -154,6 +162,27 @@ module CodexSDK
       path = `which codex 2>/dev/null`.strip
       raise Error, "codex binary not found in PATH" if path.empty?
       path
+    end
+
+    def codex_sessions_root(env)
+      if env["CODEX_HOME"] && !env["CODEX_HOME"].empty?
+        return File.join(env["CODEX_HOME"], "sessions")
+      end
+
+      return unless env["HOME"] && !env["HOME"].empty?
+
+      File.join(env["HOME"], ".codex", "sessions")
+    end
+
+    def read_context_snapshot(sessions_root:, started_at:)
+      return unless sessions_root
+
+      RolloutContextSnapshotReader.new(
+        sessions_root: sessions_root,
+        started_at: started_at
+      ).read
+    rescue StandardError
+      nil
     end
 
     def wait_for_exit(timeout)
