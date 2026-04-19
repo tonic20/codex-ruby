@@ -43,6 +43,7 @@ thread = client.start_thread(
 turn = thread.run("Explain this codebase")
 puts turn.final_response
 puts "Tokens used: #{turn.usage.input_tokens} in, #{turn.usage.output_tokens} out"
+puts "Final context: #{turn.context_snapshot.context_tokens} / #{turn.context_snapshot.model_context_window}"
 
 # Streaming run - yields events as they arrive
 thread.run_streamed("Fix the failing tests") do |event|
@@ -62,6 +63,8 @@ thread.run_streamed("Fix the failing tests") do |event|
     puts "Error: #{event.error_message}"
   end
 end
+
+puts "Final context: #{thread.context_snapshot.context_tokens} / #{thread.context_snapshot.model_context_window}"
 ```
 
 ### Resume a thread
@@ -119,6 +122,20 @@ client = CodexSDK::Client.new(
 | `Events::ItemUpdated` | Item updated with partial data |
 | `Events::ItemCompleted` | Item finished, provides typed `item` |
 | `Events::Error` | Stream-level error, provides `message` |
+
+## Context snapshots
+
+Codex CLI writes richer rollout logs under `~/.codex/sessions` (or `CODEX_HOME/sessions`). After a run completes, `Thread#run` and `Thread#run_streamed` expose a final `context_snapshot` derived from the latest `token_count` entry in those rollout files.
+
+```ruby
+snapshot = thread.context_snapshot
+snapshot.context_tokens          # => current prompt/context footprint
+snapshot.model_context_window    # => model max context window
+snapshot.last_token_usage.total_tokens
+snapshot.total_token_usage.total_tokens
+```
+
+This is separate from `turn.completed.usage`, which is still the per-turn API usage reported by the JSON event stream.
 
 ## Item types
 

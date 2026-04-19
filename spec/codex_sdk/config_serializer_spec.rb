@@ -65,9 +65,9 @@ RSpec.describe CodexSDK::ConfigSerializer do
       input = { model_reasoning_effort: "high", web_search: "disabled" }
       flags = described_class.to_flags(input)
       expect(flags).to eq([
-        "--config", 'model_reasoning_effort="high"',
-        "--config", 'web_search="disabled"'
-      ])
+                            "--config", 'model_reasoning_effort="high"',
+                            "--config", 'web_search="disabled"'
+                          ])
     end
 
     it "returns empty array for empty hash" do

@@ -4,7 +4,7 @@ require "fileutils"
 
 module CodexSDK
   class AgentThread
-    attr_reader :id
+    attr_reader :id, :context_snapshot
 
     def initialize(options, thread_options:, resume_id: nil)
       @options = options
@@ -33,7 +33,7 @@ module CodexSDK
         end
       end
 
-      Turn.new(items: items, final_response: final_response, usage: usage)
+      Turn.new(items: items, final_response: final_response, usage: usage, context_snapshot: @context_snapshot)
     end
 
     # Streaming run: yields each event to the block as it arrives.
@@ -41,9 +41,7 @@ module CodexSDK
       prompt = normalize_input(input)
 
       output_schema_path = nil
-      if turn_options.output_schema
-        output_schema_path = write_output_schema(turn_options.output_schema)
-      end
+      output_schema_path = write_output_schema(turn_options.output_schema) if turn_options.output_schema
 
       @exec = Exec.new(
         @options,
@@ -61,6 +59,7 @@ module CodexSDK
         block.call(event)
       end
     ensure
+      @context_snapshot = @exec&.context_snapshot
       cleanup_output_schema(output_schema_path)
     end
 
@@ -76,9 +75,9 @@ module CodexSDK
       when String
         input
       when Array
-        input.filter_map { |entry|
+        input.filter_map do |entry|
           entry[:text] if entry[:type] == "text"
-        }.join("\n\n")
+        end.join("\n\n")
       else
         input.to_s
       end
@@ -93,6 +92,7 @@ module CodexSDK
 
     def cleanup_output_schema(path)
       return unless path
+
       dir = File.dirname(path)
       FileUtils.rm_rf(dir)
     rescue StandardError

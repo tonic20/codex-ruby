@@ -14,13 +14,22 @@ RSpec.describe CodexSDK::AgentThread do
 
   describe "#run" do
     it "collects events and returns a Turn" do
+      context_snapshot = CodexSDK::ContextSnapshot.new(
+        model_context_window: 258_400,
+        last_token_usage: CodexSDK::TokenUsage.new(total_tokens: 12_345),
+        total_token_usage: CodexSDK::TokenUsage.new(total_tokens: 67_890)
+      )
       events = [
         CodexSDK::Events::ThreadStarted.new(thread_id: "t1"),
         CodexSDK::Events::TurnStarted.new,
         CodexSDK::Events::ItemCompleted.new(item: CodexSDK::Items::AgentMessage.new(id: "i0", text: "Hello!")),
         CodexSDK::Events::TurnCompleted.new(usage: CodexSDK::Usage.new(input_tokens: 50, output_tokens: 10))
       ]
-      stub_exec_run(events)
+      exec = instance_double(CodexSDK::Exec, context_snapshot: context_snapshot)
+      allow(CodexSDK::Exec).to receive(:new).and_return(exec)
+      allow(exec).to receive(:run) do |_prompt, **_kwargs, &block|
+        events.each { |event| block.call(event) }
+      end
 
       thread = described_class.new(options, thread_options: thread_options)
       turn = thread.run("test prompt")
@@ -29,6 +38,8 @@ RSpec.describe CodexSDK::AgentThread do
       expect(turn.final_response).to eq("Hello!")
       expect(turn.usage.input_tokens).to eq(50)
       expect(turn.usage.output_tokens).to eq(10)
+      expect(turn.context_snapshot).to eq(context_snapshot)
+      expect(thread.context_snapshot).to eq(context_snapshot)
       expect(thread.id).to eq("t1")
     end
 
@@ -94,19 +105,37 @@ RSpec.describe CodexSDK::AgentThread do
       thread = described_class.new(options, thread_options: thread_options)
       expect(thread.id).to be_nil
 
-      thread.run_streamed("test") { |_| }
+      thread.run_streamed("test") { |_event| nil }
       expect(thread.id).to eq("thread_xyz")
+    end
+
+    it "stores the final context snapshot after the stream ends" do
+      context_snapshot = CodexSDK::ContextSnapshot.new(
+        model_context_window: 258_400,
+        last_token_usage: CodexSDK::TokenUsage.new(total_tokens: 20_145),
+        total_token_usage: CodexSDK::TokenUsage.new(total_tokens: 28_198)
+      )
+      exec = instance_double(CodexSDK::Exec, context_snapshot: context_snapshot)
+      allow(CodexSDK::Exec).to receive(:new).and_return(exec)
+      allow(exec).to receive(:run) do |_prompt, **_kwargs, &block|
+        block.call(CodexSDK::Events::ThreadStarted.new(thread_id: "thread_xyz"))
+      end
+
+      thread = described_class.new(options, thread_options: thread_options)
+      thread.run_streamed("test") { |_event| nil }
+
+      expect(thread.context_snapshot).to eq(context_snapshot)
     end
   end
 
   describe "#interrupt" do
     it "delegates to exec" do
-      exec = instance_double(CodexSDK::Exec, interrupt: nil)
+      exec = instance_double(CodexSDK::Exec, interrupt: nil, context_snapshot: nil)
       allow(CodexSDK::Exec).to receive(:new).and_return(exec)
       allow(exec).to receive(:run)
 
       thread = described_class.new(options, thread_options: thread_options)
-      thread.run_streamed("test") { |_| }
+      thread.run_streamed("test") { |_event| nil }
       thread.interrupt
 
       expect(exec).to have_received(:interrupt)

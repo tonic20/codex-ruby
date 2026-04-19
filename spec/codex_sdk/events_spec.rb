@@ -43,7 +43,8 @@ RSpec.describe CodexSDK::Events do
     it "parses item.started" do
       data = {
         "type" => "item.started",
-        "item" => { "type" => "mcp_tool_call", "id" => "item_0", "server" => "test", "tool" => "foo", "status" => "in_progress" }
+        "item" => { "type" => "mcp_tool_call", "id" => "item_0", "server" => "test", "tool" => "foo",
+                    "status" => "in_progress" }
       }
       event = described_class.parse(data)
       expect(event).to be_a(CodexSDK::Events::ItemStarted)
@@ -54,7 +55,8 @@ RSpec.describe CodexSDK::Events do
     it "parses item.updated" do
       data = {
         "type" => "item.updated",
-        "item" => { "type" => "command_execution", "id" => "item_1", "command" => "ls", "aggregated_output" => "partial", "status" => "in_progress" }
+        "item" => { "type" => "command_execution", "id" => "item_1", "command" => "ls",
+                    "aggregated_output" => "partial", "status" => "in_progress" }
       }
       event = described_class.parse(data)
       expect(event).to be_a(CodexSDK::Events::ItemUpdated)

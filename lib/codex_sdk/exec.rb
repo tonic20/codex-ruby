@@ -10,7 +10,7 @@ module CodexSDK
   class Exec
     SHUTDOWN_TIMEOUT = 10 # seconds to wait after SIGTERM before SIGKILL
 
-    attr_reader :pid
+    attr_reader :pid, :context_snapshot
 
     def initialize(options, thread_options: ThreadOptions.new)
       @options = options
@@ -27,6 +27,9 @@ module CodexSDK
     def run(prompt, resume_thread_id: nil, images: [], output_schema_path: nil, &block)
       args = build_args(resume_thread_id: resume_thread_id, images: images, output_schema_path: output_schema_path)
       env = build_env
+      sessions_root = codex_sessions_root(env)
+      started_at = Time.now
+      @context_snapshot = nil
 
       @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(env, *args)
 
@@ -35,7 +38,11 @@ module CodexSDK
       @stdin.close
 
       # Read stderr in background thread
-      stderr_reader = ::Thread.new { @stderr.read rescue "" }
+      stderr_reader = ::Thread.new do
+        @stderr.read
+      rescue StandardError
+        ""
+      end
 
       # Read JSONL from stdout line by line
       @stdout.each_line do |line|
@@ -64,6 +71,11 @@ module CodexSDK
           stderr: stderr_buf
         )
       end
+
+      @context_snapshot = read_context_snapshot(
+        sessions_root: sessions_root,
+        started_at: started_at
+      )
     ensure
       cleanup
     end
@@ -122,9 +134,7 @@ module CodexSDK
         args.concat(["--config", "sandbox_workspace_write.network_access=#{to.network_access}"])
       end
 
-      if to.web_search
-        args.concat(["--config", "web_search=#{ConfigSerializer.to_toml_value(to.web_search)}"])
-      end
+      args.concat(["--config", "web_search=#{ConfigSerializer.to_toml_value(to.web_search)}"]) if to.web_search
 
       if to.approval_policy
         args.concat(["--config", "approval_policy=#{ConfigSerializer.to_toml_value(to.approval_policy)}"])
@@ -153,15 +163,37 @@ module CodexSDK
     def find_codex_path
       path = `which codex 2>/dev/null`.strip
       raise Error, "codex binary not found in PATH" if path.empty?
+
       path
+    end
+
+    def codex_sessions_root(env)
+      return File.join(env["CODEX_HOME"], "sessions") if env["CODEX_HOME"] && !env["CODEX_HOME"].empty?
+
+      return unless env["HOME"] && !env["HOME"].empty?
+
+      File.join(env["HOME"], ".codex", "sessions")
+    end
+
+    def read_context_snapshot(sessions_root:, started_at:)
+      return unless sessions_root
+
+      RolloutContextSnapshotReader.new(
+        sessions_root: sessions_root,
+        started_at: started_at
+      ).read
+    rescue StandardError
+      nil
     end
 
     def wait_for_exit(timeout)
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
       loop do
         return true unless @wait_thread&.alive?
+
         remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
         return false if remaining <= 0
+
         sleep([0.1, remaining].min)
       end
     end
