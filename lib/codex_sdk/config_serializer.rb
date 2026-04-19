@@ -38,6 +38,7 @@ module CodexSDK
         value.to_json
       when Integer, Float
         raise ArgumentError, "cannot serialize non-finite number" unless value.to_f.finite?
+
         value.to_s
       when true, false
         value.to_s

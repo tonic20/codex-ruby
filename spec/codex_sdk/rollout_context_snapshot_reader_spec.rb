@@ -15,7 +15,7 @@ RSpec.describe CodexSDK::RolloutContextSnapshotReader do
   def write_rollout(relative_path, events, mtime:)
     path = File.join(sessions_root, relative_path)
     FileUtils.mkdir_p(File.dirname(path))
-    File.write(path, events.map { |event| JSON.generate(event) }.join("\n") + "\n")
+    File.write(path, "#{events.map { |event| JSON.generate(event) }.join("\n")}\n")
     File.utime(mtime, mtime, path)
     path
   end
@@ -103,19 +103,21 @@ RSpec.describe CodexSDK::RolloutContextSnapshotReader do
 
     File.write(
       path,
-      [
-        {
-          "type" => "event_msg",
-          "payload" => {
-            "type" => "token_count",
-            "info" => {
-              "model_context_window" => 258_400,
-              "last_token_usage" => { "total_tokens" => 20_145 },
-              "total_token_usage" => { "total_tokens" => 28_198 }
+      "#{
+        [
+          {
+            "type" => "event_msg",
+            "payload" => {
+              "type" => "token_count",
+              "info" => {
+                "model_context_window" => 258_400,
+                "last_token_usage" => { "total_tokens" => 20_145 },
+                "total_token_usage" => { "total_tokens" => 28_198 }
+              }
             }
           }
-        }
-      ].map { |event| JSON.generate(event) }.join("\n") + "\n"
+        ].map { |event| JSON.generate(event) }.join("\n")
+      }\n"
     )
     File.utime(started_at + 5, started_at + 5, path)
 

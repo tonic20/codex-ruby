@@ -41,9 +41,7 @@ module CodexSDK
       prompt = normalize_input(input)
 
       output_schema_path = nil
-      if turn_options.output_schema
-        output_schema_path = write_output_schema(turn_options.output_schema)
-      end
+      output_schema_path = write_output_schema(turn_options.output_schema) if turn_options.output_schema
 
       @exec = Exec.new(
         @options,
@@ -77,9 +75,9 @@ module CodexSDK
       when String
         input
       when Array
-        input.filter_map { |entry|
+        input.filter_map do |entry|
           entry[:text] if entry[:type] == "text"
-        }.join("\n\n")
+        end.join("\n\n")
       else
         input.to_s
       end
@@ -94,6 +92,7 @@ module CodexSDK
 
     def cleanup_output_schema(path)
       return unless path
+
       dir = File.dirname(path)
       FileUtils.rm_rf(dir)
     rescue StandardError

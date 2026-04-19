@@ -1,0 +1,38 @@
+AllCops:
+  NewCops: enable
+  SuggestExtensions: false
+  TargetRubyVersion: 3.2
+
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+Style/StringLiterals:
+  Enabled: false
+
+Style/ArgumentsForwarding:
+  Enabled: false
+
+Style/ConcatArrayLiterals:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+Style/StringLiteralsInInterpolation:
+  Enabled: false

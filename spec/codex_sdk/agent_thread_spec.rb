@@ -105,7 +105,7 @@ RSpec.describe CodexSDK::AgentThread do
       thread = described_class.new(options, thread_options: thread_options)
       expect(thread.id).to be_nil
 
-      thread.run_streamed("test") { |_| }
+      thread.run_streamed("test") { |_event| nil }
       expect(thread.id).to eq("thread_xyz")
     end
 
@@ -122,7 +122,7 @@ RSpec.describe CodexSDK::AgentThread do
       end
 
       thread = described_class.new(options, thread_options: thread_options)
-      thread.run_streamed("test") { |_| }
+      thread.run_streamed("test") { |_event| nil }
 
       expect(thread.context_snapshot).to eq(context_snapshot)
     end
@@ -135,7 +135,7 @@ RSpec.describe CodexSDK::AgentThread do
       allow(exec).to receive(:run)
 
       thread = described_class.new(options, thread_options: thread_options)
-      thread.run_streamed("test") { |_| }
+      thread.run_streamed("test") { |_event| nil }
       thread.interrupt
 
       expect(exec).to have_received(:interrupt)

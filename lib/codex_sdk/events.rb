@@ -19,9 +19,7 @@ module CodexSDK
 
     ThreadStarted = Data.define(:thread_id)
 
-    TurnStarted = Data.define do
-      def initialize; super(); end
-    end
+    TurnStarted = Data.define
 
     TurnCompleted = Data.define(:usage) do
       def self.from_json(data)

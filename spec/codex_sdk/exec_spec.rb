@@ -8,10 +8,10 @@ RSpec.describe CodexSDK::Exec do
 
   def mock_popen3(stdout_lines:, stderr: "", exit_code: 0)
     stdin = instance_double(IO, write: nil, close: nil, closed?: true)
-    stdout = StringIO.new(stdout_lines.join("\n") + "\n")
+    stdout = StringIO.new("#{stdout_lines.join("\n")}\n")
     stderr_io = StringIO.new(stderr)
     status = instance_double(Process::Status, success?: exit_code == 0, exitstatus: exit_code, termsig: nil)
-    wait_thread = double("wait_thread", value: status, alive?: false, pid: 12345)
+    wait_thread = double("wait_thread", value: status, alive?: false, pid: 12_345)
 
     allow(Open3).to receive(:popen3).and_return([stdin, stdout, stderr_io, wait_thread])
 
@@ -52,9 +52,9 @@ RSpec.describe CodexSDK::Exec do
 
       exec = described_class.new(options, thread_options: thread_options)
 
-      expect {
-        exec.run("hello") { |_| }
-      }.to raise_error(CodexSDK::ExecError, /exited with code 1/)
+      expect do
+        exec.run("hello") { |_event| nil }
+      end.to raise_error(CodexSDK::ExecError, /exited with code 1/)
     end
 
     it "raises ParseError for invalid JSON" do
@@ -62,9 +62,9 @@ RSpec.describe CodexSDK::Exec do
 
       exec = described_class.new(options, thread_options: thread_options)
 
-      expect {
-        exec.run("hello") { |_| }
-      }.to raise_error(CodexSDK::ParseError, /Failed to parse/)
+      expect do
+        exec.run("hello") { |_event| nil }
+      end.to raise_error(CodexSDK::ParseError, /Failed to parse/)
     end
 
     it "skips empty lines" do
@@ -88,7 +88,7 @@ RSpec.describe CodexSDK::Exec do
       described_class.new(
         options,
         thread_options: CodexSDK::ThreadOptions.new(dangerously_bypass_approvals_and_sandbox: true)
-      ).run("hello") { |_| }
+      ).run("hello") { |_event| nil }
 
       expect(Open3).to have_received(:popen3).with(
         anything,
@@ -107,11 +107,12 @@ RSpec.describe CodexSDK::Exec do
       )
       reader = instance_double(CodexSDK::RolloutContextSnapshotReader, read: snapshot)
 
-      mock_popen3(stdout_lines: ['{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}'])
+      completed_json = '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}'
+      mock_popen3(stdout_lines: [completed_json])
       allow(CodexSDK::RolloutContextSnapshotReader).to receive(:new).and_return(reader)
 
       exec = described_class.new(options, thread_options: thread_options)
-      exec.run("hello") { |_| }
+      exec.run("hello") { |_event| nil }
 
       expect(exec.context_snapshot).to eq(snapshot)
     end
@@ -120,7 +121,7 @@ RSpec.describe CodexSDK::Exec do
   describe "#interrupt" do
     it "sends SIGTERM to the subprocess" do
       status = instance_double(Process::Status, success?: true, exitstatus: 0, termsig: nil)
-      wait_thread = double("wait_thread", value: status, alive?: true, pid: 12345)
+      wait_thread = double("wait_thread", value: status, alive?: true, pid: 12_345)
 
       stdin = instance_double(IO, write: nil, close: nil, closed?: true)
       stdout = StringIO.new("")
@@ -133,12 +134,12 @@ RSpec.describe CodexSDK::Exec do
       exec = described_class.new(options, thread_options: thread_options)
 
       # Start in a background thread so we can interrupt
-      runner = ::Thread.new { exec.run("hello") { |_| } }
+      runner = Thread.new { exec.run("hello") { |_event| nil } }
       sleep(0.05)
 
       exec.interrupt
 
-      expect(Process).to have_received(:kill).with("TERM", 12345)
+      expect(Process).to have_received(:kill).with("TERM", 12_345)
       runner.join(1)
     end
   end

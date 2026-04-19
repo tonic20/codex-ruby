@@ -38,7 +38,11 @@ module CodexSDK
       @stdin.close
 
       # Read stderr in background thread
-      stderr_reader = ::Thread.new { @stderr.read rescue "" }
+      stderr_reader = ::Thread.new do
+        @stderr.read
+      rescue StandardError
+        ""
+      end
 
       # Read JSONL from stdout line by line
       @stdout.each_line do |line|
@@ -130,9 +134,7 @@ module CodexSDK
         args.concat(["--config", "sandbox_workspace_write.network_access=#{to.network_access}"])
       end
 
-      if to.web_search
-        args.concat(["--config", "web_search=#{ConfigSerializer.to_toml_value(to.web_search)}"])
-      end
+      args.concat(["--config", "web_search=#{ConfigSerializer.to_toml_value(to.web_search)}"]) if to.web_search
 
       if to.approval_policy
         args.concat(["--config", "approval_policy=#{ConfigSerializer.to_toml_value(to.approval_policy)}"])
@@ -161,13 +163,12 @@ module CodexSDK
     def find_codex_path
       path = `which codex 2>/dev/null`.strip
       raise Error, "codex binary not found in PATH" if path.empty?
+
       path
     end
 
     def codex_sessions_root(env)
-      if env["CODEX_HOME"] && !env["CODEX_HOME"].empty?
-        return File.join(env["CODEX_HOME"], "sessions")
-      end
+      return File.join(env["CODEX_HOME"], "sessions") if env["CODEX_HOME"] && !env["CODEX_HOME"].empty?
 
       return unless env["HOME"] && !env["HOME"].empty?
 
@@ -189,8 +190,10 @@ module CodexSDK
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
       loop do
         return true unless @wait_thread&.alive?
+
         remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
         return false if remaining <= 0
+
         sleep([0.1, remaining].min)
       end
     end
