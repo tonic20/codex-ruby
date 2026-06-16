@@ -99,6 +99,23 @@ RSpec.describe CodexSDK::Exec do
       )
     end
 
+    it "passes web search as the global search flag" do
+      mock_popen3(stdout_lines: ['{"type":"turn.completed","usage":{}}'])
+
+      described_class.new(
+        options,
+        thread_options: CodexSDK::ThreadOptions.new(web_search: true)
+      ).run("hello") { |_event| nil }
+
+      expect(Open3).to have_received(:popen3).with(
+        anything,
+        "/usr/bin/codex",
+        "--search",
+        "exec",
+        "--experimental-json"
+      )
+    end
+
     it "captures the final context snapshot after a successful run" do
       snapshot = CodexSDK::ContextSnapshot.new(
         model_context_window: 258_400,

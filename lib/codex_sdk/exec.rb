@@ -106,7 +106,9 @@ module CodexSDK
 
     def build_args(resume_thread_id: nil, images: [], output_schema_path: nil)
       codex_path = @options.codex_path || find_codex_path
-      args = [codex_path, "exec", "--experimental-json"]
+      args = [codex_path]
+      args << "--search" if @thread_options.web_search
+      args.concat(["exec", "--experimental-json"])
 
       # Global config overrides
       args.concat(ConfigSerializer.to_flags(@options.config)) if @options.config.any?
@@ -133,8 +135,6 @@ module CodexSDK
       unless to.network_access.nil?
         args.concat(["--config", "sandbox_workspace_write.network_access=#{to.network_access}"])
       end
-
-      args.concat(["--config", "web_search=#{ConfigSerializer.to_toml_value(to.web_search)}"]) if to.web_search
 
       if to.approval_policy
         args.concat(["--config", "approval_policy=#{ConfigSerializer.to_toml_value(to.approval_policy)}"])

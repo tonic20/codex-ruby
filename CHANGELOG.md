@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 (2026-06-16)
+
+- Pass `web_search: true` to current Codex CLI versions as the global
+  `--search` flag instead of the rejected `web_search=true` config override
+
 ## 0.1.3 (2026-06-16)
 
 - Add `AGENTS.md` with contributor and release rules for AI agents
