@@ -7,6 +7,10 @@ Metrics/BlockLength:
   Exclude:
     - "spec/**/*"
 
+# MFA is intentionally not required so releases can be pushed without it.
+Gemspec/RequireMFA:
+  Enabled: false
+
 Metrics/AbcSize:
   Enabled: false
 

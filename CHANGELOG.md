@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 (2026-06-16)
+
+- Add `AGENTS.md` with contributor and release rules for AI agents
+- Disable the `Gemspec/RequireMFA` RuboCop cop to match the intentionally MFA-free release setup
+
 ## 0.1.2 (2026-04-19)
 
 - Expose rollout-derived `context_snapshot` data on `Exec`, `AgentThread`, and blocking `Turn` results
