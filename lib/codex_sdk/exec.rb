@@ -30,6 +30,7 @@ module CodexSDK
       sessions_root = codex_sessions_root(env)
       started_at = Time.now
       @context_snapshot = nil
+      diagnostics = []
 
       @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(env, *args)
 
@@ -56,6 +57,7 @@ module CodexSDK
         end
 
         event = Events.parse(data)
+        capture_diagnostic(event, diagnostics)
         block.call(event)
       end
 
@@ -64,9 +66,9 @@ module CodexSDK
 
       unless status.success?
         code = status.exitstatus || status.termsig
-        truncated = stderr_buf.length > 500 ? "#{stderr_buf[0, 497]}..." : stderr_buf
+        diagnostic = exit_diagnostic(diagnostics, stderr_buf)
         raise ExecError.new(
-          "Codex exited with code #{code}: #{truncated}",
+          "Codex exited with code #{code}: #{diagnostic}",
           exit_code: code,
           stderr: stderr_buf
         )
@@ -103,6 +105,32 @@ module CodexSDK
     end
 
     private
+
+    def capture_diagnostic(event, diagnostics)
+      message =
+        case event
+        when Events::TurnFailed
+          event.error_message
+        when Events::Error
+          event.message
+        when Events::ItemStarted, Events::ItemUpdated, Events::ItemCompleted
+          event.item.message if event.item.is_a?(Items::Error)
+        end
+      diagnostics << readable_error_message(message) if message.to_s.strip != ""
+    end
+
+    def exit_diagnostic(diagnostics, stderr)
+      diagnostic = diagnostics.compact.uniq.join("\n")
+      diagnostic = stderr.to_s if diagnostic == ""
+      diagnostic.length > 500 ? "#{diagnostic[0, 497]}..." : diagnostic
+    end
+
+    def readable_error_message(message)
+      parsed = JSON.parse(message.to_s)
+      parsed.dig("error", "message") || parsed["message"] || message.to_s
+    rescue JSON::ParserError
+      message.to_s
+    end
 
     def build_args(resume_thread_id: nil, images: [], output_schema_path: nil)
       codex_path = @options.codex_path || find_codex_path

@@ -57,6 +57,26 @@ RSpec.describe CodexSDK::Exec do
       end.to raise_error(CodexSDK::ExecError, /exited with code 1/)
     end
 
+    it "includes structured CLI error events on non-zero exit" do
+      error_message = JSON.generate(
+        "type" => "error",
+        "status" => 400,
+        "error" => { "message" => "The model is not supported" }
+      )
+      stdout_lines = [
+        JSON.generate("type" => "thread.started", "thread_id" => "t1"),
+        JSON.generate("type" => "error", "message" => error_message),
+        JSON.generate("type" => "turn.failed", "error" => { "message" => error_message })
+      ]
+      mock_popen3(stdout_lines: stdout_lines, stderr: "Reading prompt from stdin...\n", exit_code: 1)
+
+      exec = described_class.new(options, thread_options: thread_options)
+
+      expect do
+        exec.run("hello") { |_event| nil }
+      end.to raise_error(CodexSDK::ExecError, /The model is not supported/)
+    end
+
     it "raises ParseError for invalid JSON" do
       mock_popen3(stdout_lines: ["not json"])
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 (2026-06-17)
+
+- Include structured Codex CLI error events in non-zero exit errors, so
+  API failures such as unsupported model names are visible to callers
+
 ## 0.1.4 (2026-06-16)
 
 - Pass `web_search: true` to current Codex CLI versions as the global
