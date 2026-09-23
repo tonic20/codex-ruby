@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3 (2026-09-23)
+
+- Preserve provider failures when macOS reports a transient permission error for an exiting process group; verify that the group is gone before ignoring cleanup errors.
+
 ## 0.2.2 (2026-09-23)
 
 - Clear the exposed PID after an already-exited CLI has been reaped, preventing stale process diagnostics.

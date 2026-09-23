@@ -90,7 +90,7 @@ module CodexSDK
         return unless @pid
 
         begin
-          Process.kill("TERM", -@pid)
+          signal_group("TERM")
         rescue Errno::ESRCH
           @wait_thread.value
           @pid = nil
@@ -101,7 +101,7 @@ module CodexSDK
         wait_for_exit(SHUTDOWN_TIMEOUT)
         begin
           # Also stop descendants that outlive the immediate CLI child.
-          Process.kill("KILL", -@pid)
+          signal_group("KILL")
         rescue Errno::ESRCH
           # already gone
         end
@@ -111,6 +111,16 @@ module CodexSDK
     end
 
     private
+
+    def signal_group(signal)
+      Process.kill(signal, -@pid)
+    rescue Errno::EPERM
+      # macOS can report EPERM while the last group member is exiting.
+      # Only treat it as gone when a subsequent group probe confirms ESRCH.
+      @wait_thread.join(0.1)
+      Process.kill(0, -@pid)
+      raise
+    end
 
     def capture_diagnostic(event, diagnostics)
       message =

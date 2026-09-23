@@ -158,6 +158,26 @@ RSpec.describe CodexSDK::Exec do
   end
 
   describe "#interrupt" do
+    it "preserves a consumer error when a disappearing process group reports EPERM" do
+      mocks = mock_popen3(stdout_lines: ['{"type":"turn.failed","error":{"message":"quota"}}'])
+      allow(mocks[:wait_thread]).to receive(:join).with(0.1)
+      allow(Process).to receive(:kill).with("TERM", -12_345).and_raise(Errno::EPERM)
+      allow(Process).to receive(:kill).with(0, -12_345).and_raise(Errno::ESRCH)
+      exec = described_class.new(options)
+
+      expect { exec.run("test") { raise CodexSDK::Error, "quota" } }.to raise_error(CodexSDK::Error, "quota")
+      expect(exec.pid).to be_nil
+    end
+
+    it "does not ignore permission errors for a process group that still exists" do
+      mocks = mock_popen3(stdout_lines: [])
+      allow(mocks[:wait_thread]).to receive(:join).with(0.1)
+      allow(Process).to receive(:kill).with("TERM", -12_345).and_raise(Errno::EPERM)
+      allow(Process).to receive(:kill).with(0, -12_345).and_return(1)
+
+      expect { described_class.new(options).run("test") { nil } }.to raise_error(Errno::EPERM)
+    end
+
     it "sends SIGTERM to the subprocess" do
       status = instance_double(Process::Status, success?: true, exitstatus: 0, termsig: nil)
       wait_thread = double("wait_thread", value: status, alive?: true, pid: 12_345)
