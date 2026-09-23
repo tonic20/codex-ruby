@@ -32,6 +32,7 @@ RSpec.describe "Analysis CLI compatibility" do
     thread = client.start_thread(ignore_user_config: true, ignore_rules: true, ephemeral: true)
     turn = thread.run([{ type: "text", text: "first" }, { type: "local_image", path: image },
                        { type: "text", text: "second" }])
+    expect(thread.pid).to be_nil
     result = JSON.parse(turn.final_response)
     expect(result["prompt"]).to eq("first\n\nsecond")
     expect(result["args"]).to eq(["exec", "--json", "--ignore-user-config", "--ignore-rules", "--ephemeral", "--image",

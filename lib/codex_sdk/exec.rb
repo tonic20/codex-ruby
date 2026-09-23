@@ -92,6 +92,8 @@ module CodexSDK
         begin
           Process.kill("TERM", -@pid)
         rescue Errno::ESRCH
+          @wait_thread.value
+          @pid = nil
           return
         end
 
