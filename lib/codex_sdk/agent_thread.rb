@@ -38,7 +38,8 @@ module CodexSDK
 
     # Streaming run: yields each event to the block as it arrives.
     def run_streamed(input, turn_options: TurnOptions.new, &block)
-      prompt = normalize_input(input)
+      prompt, images = normalize_input(input)
+      completed = false
 
       output_schema_path = nil
       output_schema_path = write_output_schema(turn_options.output_schema) if turn_options.output_schema
@@ -50,17 +51,25 @@ module CodexSDK
 
       @exec.run(
         prompt,
+        images: images,
         resume_thread_id: @id,
         output_schema_path: output_schema_path
       ) do |event|
         # Capture thread ID from first event
         @id = event.thread_id if event.is_a?(Events::ThreadStarted)
+        completed = true if event.is_a?(Events::TurnCompleted)
 
         block.call(event)
       end
+      raise Error, "Codex stream ended without turn completion" unless completed
     ensure
       @context_snapshot = @exec&.context_snapshot
       cleanup_output_schema(output_schema_path)
+    end
+
+    # PID of the running CLI, for external lifecycle diagnostics.
+    def pid
+      @exec&.pid
     end
 
     # Interrupt the running subprocess.
@@ -73,13 +82,32 @@ module CodexSDK
     def normalize_input(input)
       case input
       when String
-        input
+        [input, []]
       when Array
-        input.filter_map do |entry|
-          entry[:text] if entry[:type] == "text"
-        end.join("\n\n")
+        texts = []
+        images = []
+        input.each do |entry|
+          raise ArgumentError, "Unsupported input entry" unless entry.is_a?(Hash)
+
+          case entry[:type]
+          when "text"
+            raise ArgumentError, "Text input must be a string" unless entry[:text].is_a?(String)
+
+            texts << entry[:text]
+          when "local_image"
+            path = entry[:path]
+            unless path.is_a?(String) && path.start_with?(File::SEPARATOR) && File.file?(path) && File.readable?(path)
+              raise ArgumentError, "Local image must be an absolute readable file path"
+            end
+
+            images << path
+          else
+            raise ArgumentError, "Unsupported input type: #{entry[:type].inspect}"
+          end
+        end
+        [texts.join("\n\n"), images]
       else
-        input.to_s
+        raise ArgumentError, "Unsupported input: expected string or array"
       end
     end
 

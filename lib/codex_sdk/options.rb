@@ -31,7 +31,10 @@ module CodexSDK
     :network_access,
     :web_search,
     :additional_directories,
-    :skip_git_repo_check
+    :skip_git_repo_check,
+    :ignore_user_config,
+    :ignore_rules,
+    :ephemeral
   ) do
     def initialize(
       model: nil,
@@ -43,7 +46,10 @@ module CodexSDK
       network_access: nil,
       web_search: nil,
       additional_directories: [],
-      skip_git_repo_check: false
+      skip_git_repo_check: false,
+      ignore_user_config: false,
+      ignore_rules: false,
+      ephemeral: false
     )
       super
     end

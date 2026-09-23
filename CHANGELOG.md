@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.3 (2026-09-23)
+
+- Preserve provider failures when macOS reports a transient permission error for an exiting process group; verify that the group is gone before ignoring cleanup errors.
+
+## 0.2.2 (2026-09-23)
+
+- Clear the exposed PID after an already-exited CLI has been reaped, preventing stale process diagnostics.
+
+## 0.2.1 (2026-09-23)
+
+- Expose the active CLI PID through `AgentThread#pid` for worker recovery diagnostics.
+
+## 0.2.0 (2026-09-23)
+
+- Forward ordered `local_image` inputs through the public thread API; reject unsupported input types and invalid local paths instead of silently discarding them.
+- Add `ignore_user_config`, `ignore_rules`, and `ephemeral` thread options; use the documented `--json` CLI flag.
+- Honor explicit environment replacement without inheriting parent secrets.
+- Terminate and reap CLI process groups on cancellation or consumer errors, with concurrent interruption serialized.
+- Raise on streams that end without a completed turn instead of returning partial answers as success.
+
 ## 0.1.5 (2026-06-17)
 
 - Include structured Codex CLI error events in non-zero exit errors, so
