@@ -106,6 +106,32 @@ RSpec.describe "Analysis CLI compatibility" do
     runner&.join(5)
   end
 
+  it "kills descendants even when the CLI exits before them" do
+    cli(<<~CODE)
+      STDOUT.sync = true
+      child = fork { trap('TERM') {}; sleep 60 }
+      puts JSON.generate(type: 'thread.started', thread_id: child.to_s)
+      exit 0
+    CODE
+    started = Queue.new
+    thread = client.start_thread
+    runner = Thread.new do
+      thread.run_streamed("test") { |event| started << event.thread_id.to_i }
+    rescue CodexSDK::Error => e
+      e
+    end
+    child = Timeout.timeout(5) { started.pop }
+    sleep 0.1
+    thread.interrupt
+    expect(runner.join(5)).to eq(runner)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 3
+    sleep 0.05 while process_alive?(child) && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+    expect(process_alive?(child)).to be(false)
+  ensure
+    thread&.interrupt
+    runner&.join(5)
+  end
+
   def process_alive?(pid)
     Process.kill(0, pid)
     true
