@@ -5,7 +5,7 @@ require "json"
 
 module CodexSDK
   # Internal: manages the codex CLI subprocess.
-  # Spawns `codex exec --experimental-json`, writes prompt to stdin,
+  # Spawns `codex exec --json`, writes prompt to stdin,
   # reads JSONL events from stdout.
   class Exec
     SHUTDOWN_TIMEOUT = 10 # seconds to wait after SIGTERM before SIGKILL
@@ -32,7 +32,9 @@ module CodexSDK
       @context_snapshot = nil
       diagnostics = []
 
-      @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(env, *args)
+      @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(env, *args, unsetenv_others: !@options.env.nil?,
+                                                                        pgroup: true)
+      @pid = @wait_thread.pid
 
       # Write prompt and close stdin (one-shot, matching TypeScript SDK)
       @stdin.write(prompt.to_s)
@@ -85,22 +87,24 @@ module CodexSDK
     # Sends SIGTERM to the subprocess, waits, then SIGKILL if needed.
     def interrupt
       @mutex.synchronize do
-        return unless @wait_thread&.alive?
+        return unless @pid
 
         begin
-          Process.kill("TERM", @wait_thread.pid)
+          Process.kill("TERM", -@pid)
         rescue Errno::ESRCH
           return
         end
 
         # Wait for graceful shutdown
-        unless wait_for_exit(SHUTDOWN_TIMEOUT)
-          begin
-            Process.kill("KILL", @wait_thread.pid)
-          rescue Errno::ESRCH
-            # already gone
-          end
+        wait_for_exit(SHUTDOWN_TIMEOUT)
+        begin
+          # Also stop descendants that outlive the immediate CLI child.
+          Process.kill("KILL", -@pid)
+        rescue Errno::ESRCH
+          # already gone
         end
+        @wait_thread.value
+        @pid = nil
       end
     end
 
@@ -136,7 +140,7 @@ module CodexSDK
       codex_path = @options.codex_path || find_codex_path
       args = [codex_path]
       args << "--search" if @thread_options.web_search
-      args.concat(["exec", "--experimental-json"])
+      args.concat(["exec", "--json"])
 
       # Global config overrides
       args.concat(ConfigSerializer.to_flags(@options.config)) if @options.config.any?
@@ -153,6 +157,9 @@ module CodexSDK
       args.concat(["--cd", to.working_directory]) if to.working_directory
       args << "--dangerously-bypass-approvals-and-sandbox" if to.dangerously_bypass_approvals_and_sandbox
       args << "--skip-git-repo-check" if to.skip_git_repo_check
+      args << "--ignore-user-config" if to.ignore_user_config
+      args << "--ignore-rules" if to.ignore_rules
+      args << "--ephemeral" if to.ephemeral
 
       to.additional_directories.each { |dir| args.concat(["--add-dir", dir]) }
 
@@ -227,6 +234,7 @@ module CodexSDK
     end
 
     def cleanup
+      interrupt
       @stdin&.close unless @stdin&.closed?
       @stdout&.close unless @stdout&.closed?
       @stderr&.close unless @stderr&.closed?

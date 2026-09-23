@@ -99,7 +99,8 @@ RSpec.describe CodexSDK::AgentThread do
     end
 
     it "captures thread_id from ThreadStarted event" do
-      events = [CodexSDK::Events::ThreadStarted.new(thread_id: "thread_xyz")]
+      events = [CodexSDK::Events::ThreadStarted.new(thread_id: "thread_xyz"),
+                CodexSDK::Events::TurnCompleted.new(usage: nil)]
       stub_exec_run(events)
 
       thread = described_class.new(options, thread_options: thread_options)
@@ -119,6 +120,7 @@ RSpec.describe CodexSDK::AgentThread do
       allow(CodexSDK::Exec).to receive(:new).and_return(exec)
       allow(exec).to receive(:run) do |_prompt, **_kwargs, &block|
         block.call(CodexSDK::Events::ThreadStarted.new(thread_id: "thread_xyz"))
+        block.call(CodexSDK::Events::TurnCompleted.new(usage: nil))
       end
 
       thread = described_class.new(options, thread_options: thread_options)
@@ -132,7 +134,7 @@ RSpec.describe CodexSDK::AgentThread do
     it "delegates to exec" do
       exec = instance_double(CodexSDK::Exec, interrupt: nil, context_snapshot: nil)
       allow(CodexSDK::Exec).to receive(:new).and_return(exec)
-      allow(exec).to receive(:run)
+      allow(exec).to receive(:run).and_yield(CodexSDK::Events::TurnCompleted.new(usage: nil))
 
       thread = described_class.new(options, thread_options: thread_options)
       thread.run_streamed("test") { |_event| nil }

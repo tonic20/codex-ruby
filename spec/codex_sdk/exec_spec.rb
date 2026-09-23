@@ -114,8 +114,9 @@ RSpec.describe CodexSDK::Exec do
         anything,
         "/usr/bin/codex",
         "exec",
-        "--experimental-json",
-        "--dangerously-bypass-approvals-and-sandbox"
+        "--json",
+        "--dangerously-bypass-approvals-and-sandbox",
+        unsetenv_others: false, pgroup: true
       )
     end
 
@@ -132,7 +133,8 @@ RSpec.describe CodexSDK::Exec do
         "/usr/bin/codex",
         "--search",
         "exec",
-        "--experimental-json"
+        "--json",
+        unsetenv_others: false, pgroup: true
       )
     end
 
@@ -176,7 +178,7 @@ RSpec.describe CodexSDK::Exec do
 
       exec.interrupt
 
-      expect(Process).to have_received(:kill).with("TERM", 12_345)
+      expect(Process).to have_received(:kill).with("TERM", -12_345)
       runner.join(1)
     end
   end
