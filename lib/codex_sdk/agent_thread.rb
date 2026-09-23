@@ -67,6 +67,11 @@ module CodexSDK
       cleanup_output_schema(output_schema_path)
     end
 
+    # PID of the running CLI, for external lifecycle diagnostics.
+    def pid
+      @exec&.pid
+    end
+
     # Interrupt the running subprocess.
     def interrupt
       @exec&.interrupt

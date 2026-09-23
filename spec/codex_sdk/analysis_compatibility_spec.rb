@@ -95,6 +95,7 @@ RSpec.describe "Analysis CLI compatibility" do
       e
     end
     child = Timeout.timeout(5) { started.pop }
+    expect(thread.pid).to eq(child)
     cancellers = 2.times.map { Thread.new { thread.interrupt } }
     cancellers.each(&:join)
     expect(runner.join(5)).to eq(runner)
